@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2021/3/11 9:11
+# @Time    : 2021/3/15 13:53
 # @Author  : buer
 # @Email   : weiyouwozuiku@gmail.com
 
@@ -40,7 +40,7 @@ def readFile_html(filepath):
     return content
 
 #自己的邮件推送
-def sendEmail(receiveAddress):
+def sendEmail(sendAddress,receiveAddress,password,smtpServer):
     try:
         #要发送邮件内容
         content = readFile(os.getcwd()+os.sep+version+os.sep+'log.txt')
@@ -48,15 +48,10 @@ def sendEmail(receiveAddress):
         info=MIMEText(content,'plain','utf-8')
         info['Subject']=Header('UnicomTask每日报表','utf-8')
         #设定发送的邮箱
-        sendAddress = ''
         info['From']=Header(sendAddress)
         info['To']=Header(receiveAddress)
-        #设置自己的邮箱授权码
-        password=''
-        #设置自己的邮箱smtp地址
-        smtpServer=''
         server=smtplib.SMTP_SSL(smtpServer,465)
-        flag=server.login(sendAddress,password)
+        server.login(sendAddress,password)
         server.sendmail(sendAddress,[receiveAddress],info.as_string())
         server.quit()
         print('邮件发送成功')
@@ -153,3 +148,29 @@ def sendWechat(wex):
     message.encoding = 'utf-8'
     res = message.json()
     print('Wechat send : ' + res['errmsg'])
+
+#发送IFTTT通知
+def sendIFTTT(ifttt):
+    try:
+        content = readFile(os.getcwd()+os.sep+version+os.sep+'log.txt')
+        body = { ifttt['subjectKey']: 'UnicomTask每日报表', ifttt['contentKey']: content }
+        url = 'https://maker.ifttt.com/trigger/{event_name}/with/key/{key}'.format(event_name=ifttt['eventName'], key=ifttt['apiKey'])
+        response = requests.post(url, json=body)
+        print(response)
+    except Exception as e:
+        print('IFTTT通知推送异常，原因为: ' + str(e))
+        print(traceback.format_exc())
+
+#发送Bark通知
+def sendBarkkey(Barkkey):
+    #发送内容
+    content = readFile_text(os.getcwd()+os.sep+version+os.sep+'log.txt')
+    data = {
+        'UnicomTask每日报表':content
+    }
+    content = urllib.parse.urlencode(data)
+    url = f'https://api.day.app/{Barkkey}/{content}'
+    session = requests.Session()
+    resp = session.post(url)
+    state=json.loads(resp.text)
+    print(state)
