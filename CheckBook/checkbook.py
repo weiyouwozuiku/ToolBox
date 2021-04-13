@@ -54,7 +54,7 @@ def readFile(filePath):
 
 def updateFile(filePath,books):
     if len(books)>0:
-        file = open(filePath, mode='w',encoding='utf-8')
+        file = open(filePath, mode='a+',encoding='utf-8')
         for book in books:
             file.write(book + '\n')
         file.close()
