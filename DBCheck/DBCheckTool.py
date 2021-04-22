@@ -17,7 +17,7 @@ def saveErrorLog(msg):
         if 'f' in dir():
             f.close()
         traceback.print_exc()
-        print("ERROR:信息保存出错，信息为：" + msg)
+        print("ERROR：信息保存出错,信息为：" + msg)
 
 
 # 保存运行日志至文件中
@@ -32,7 +32,7 @@ def saveLog(msg):
         if 'f' in dir():
             f.close()
         traceback.print_exc()
-        print("ERROR:信息保存出错，信息为：" + msg)
+        print("ERROR：信息保存出错,信息为：" + msg)
 
 
 # 读取配置文件
@@ -67,7 +67,7 @@ def getKeysFromExcel(excelName, sheetName, columns, interfaceCName):
         if isinstance(data.values[i][0], str) and data.values[i][0].strip() == interfaceCName:
             viewName = data.values[i][1].split('|')[0].strip()
         if isinstance(data.values[i][2], str) and data.values[i][2].strip() == 'Y':
-            if data.values[i][1].strip() != "batch_no":
+            if data.values[i][1].strip() != 'batch_no':
                 if viewName not in viewAndKeys:
                     viewAndKeys[viewName] = data.values[i][1].strip()
                 else:
@@ -133,7 +133,7 @@ def getColumnsFromView(pool, dbName, viewName):
         sql = "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME=%s AND TABLE_SCHEMA=%s ;"
         cursor.execute(sql, (viewName, dbName))
         for itor in cursor:
-            columns.append(itor)
+            columns.append(itor[0])
         con.close()
     except Exception as e:
         if "con" in dir():
@@ -197,9 +197,9 @@ def checkViewBetweenOldAndNew(oldPool, newPool, dbNameOld, dbNameNew):
         newColumn = getColumnsFromView(newPool, dbNameNew, view)
         diff = set(oldColumn) ^ set(newColumn)
         if diff:
-            msg = "新视图中字段少于对应旧视图，该视图为：" + view + "\n差异字段共有" + str(len(diff)) + "个，展示如下：\n"
+            msg = "新旧视图字段不一致，该视图为：" + view + "\n差异字段共有" + str(len(diff)) + "个，展示如下：\n"
             for itor in diff:
-                msg += itor[0] + "\n"
+                msg += itor + "\n"
             saveAndPrintERROR(msg)
             saveLog(msg)
             diffView.add(view)
@@ -207,6 +207,22 @@ def checkViewBetweenOldAndNew(oldPool, newPool, dbNameOld, dbNameNew):
             msg = "视图名：" + view + "在新旧数据库中字段一致\n"
             saveLog(msg)
     return sameView - diffView
+
+#获取同名视图中的同名字段
+def getViewSameColumns(oldPool, newPool, dbNameOld, dbNameNew):
+    # 获取新旧数据库中同名视图
+    viewNameOld = findViewName(oldPool, dbNameOld)
+    viewNameNew = findViewName(newPool, dbNameNew)
+    sameView = set(viewNameOld) & set(viewNameNew)
+    result = {}
+    # 对比每个同名视图中的字段信息
+    for view in sameView:
+        oldColumn = getColumnsFromView(oldPool, dbNameOld, view)
+        newColumn = getColumnsFromView(newPool, dbNameNew, view)
+        sameColumns = set(oldColumn) & set(newColumn)
+        if sameColumns:
+            result[view]=sameColumns
+    return result
 
 
 # 检查两个数据库中数据是否完全相同
@@ -351,15 +367,16 @@ def createNewTableFromViewToNewDB(oldPool, newPool, dbNameOld, dbNameNew, viewNa
         con.start_transaction()
         cursor = con.cursor()
         cursor.execute("DROP TABLE IF EXISTS " + tableName)
-        cursor.execute("CREATE TABLE IF NOT EXISTS " + tableName + " " + structTable)
+        sql="CREATE TABLE IF NOT EXISTS " + tableName + " " + structTable
+        cursor.execute(sql)
         con.commit()
         con.close()
     except Exception as e:
         if "con" in dir():
             con.rollback()
             con.close()
-        saveAndPrintERROR("ERROR:新表" + tableName + "创建失败")
-        saveLog("ERROR:新表" + tableName + "创建失败")
+        saveAndPrintERROR("ERROR:新表" + tableName + "创建失败\n创建sql为"+sql)
+        saveLog("ERROR:新表" + tableName + "创建失败\n创建sql为"+sql)
         traceback.print_exc()
     return tableInfo
 
@@ -392,17 +409,14 @@ def insertDataToNewTable(pool, tableInfo, data):
 # 查找旧数据库中存在且新数据库中不存在的记录，返回查找SQL和符合条件的记录条数
 def findDiffInOldView(pool, oldTableName, newViewName, priKey):
     result = []
-    onSQL = ""
-    whereSQL = ""
+    prikey=""
     for key in priKey:
-        onSQL += "old." + key + "=new." + key + " AND "
-        whereSQL += "new." + key + " IS NULL AND "
-    onSQL = onSQL[:-4]
-    whereSQL = whereSQL[:-4]
-    sql = "SELECT old.* FROM " + oldTableName + " old LEFT JOIN " + newViewName \
-          + " new ON " + onSQL + " WHERE " + whereSQL + ";"
-    countSQL = "SELECT COUNT(*) FROM " + oldTableName + " old LEFT JOIN " + newViewName \
-               + " new ON " + onSQL + " WHERE " + whereSQL + ";"
+        prikey+="old."+key+"=new."+key+" AND "
+    prikey=prikey[:-5]
+    sql="SELECT old.* FROM "+oldTableName+" old WHERE NOT EXISTS( SELECT 1 FROM "+newViewName\
+        +" new WHERE "+prikey+" )"
+    countSQL="SELECT COUNT(*) FROM "+oldTableName+" old WHERE NOT EXISTS( SELECT 1 FROM "+newViewName\
+        +" new WHERE "+prikey+" )"
     result.append(sql)
     try:
         con = pool.get_connection()
@@ -424,17 +438,14 @@ def findDiffInOldView(pool, oldTableName, newViewName, priKey):
 # 查找新数据库中存在且旧数据库中不存在的记录，返回查找SQL和符合条件的记录条数
 def findDiffInNewView(pool, oldTableName, newViewName, priKey):
     result = []
-    onSQL = ""
-    whereSQL = ""
+    prikey = ""
     for key in priKey:
-        onSQL += "old." + key + "=new." + key + " AND "
-        whereSQL += "old." + key + " IS NULL AND "
-    onSQL = onSQL[:-4]
-    whereSQL = whereSQL[:-4]
-    sql = "SELECT new.* FROM " + oldTableName + " old RIGHT JOIN " + newViewName \
-          + " new ON " + onSQL + " WHERE " + whereSQL + ";"
-    countSQL = "SELECT COUNT(*) FROM " + oldTableName + " old RIGHT JOIN " + newViewName \
-               + " new ON " + onSQL + " WHERE " + whereSQL + ";"
+        prikey += "old." + key + "=new." + key + " AND "
+    prikey = prikey[:-5]
+    sql = "SELECT new.* FROM " + newViewName + " new WHERE NOT EXISTS( SELECT 1 FROM " + oldTableName \
+          + " old WHERE " + prikey + " )"
+    countSQL = "SELECT COUNT(*) FROM " + newViewName + " new WHERE NOT EXISTS( SELECT 1 FROM " + oldTableName \
+               + " old WHERE " + prikey + " )"
     result.append(sql)
     try:
         con = pool.get_connection()
@@ -457,24 +468,26 @@ def findDiffInNewView(pool, oldTableName, newViewName, priKey):
 def findDiffBetweenOldAndNew(pool, oldTableName, newViewName, priKey, keys):
     result = []
     showSQL = ""
-    onSQL = ""
+    prikeys=""
+    noPrikeys=""
     for key in priKey:
-        onSQL += "old." + key + "=new." + key + " AND "
-        showSQL += "old." + key + ",new." + key + ","
-    onSQL = onSQL[:-4]
-    if keys != []:
-        orSQL = " AND ( "
+        showSQL+="old."+key+",new."+key+" , "
+        prikeys+="old."+key+"=new."+key+" AND "
+    showSQL=showSQL[:-2]
+    prikeys=prikeys[:-4]
+    if keys:
+        showSQL+=","
+        noPrikeys =" AND ( "
         for key in keys:
-            orSQL += "old." + key + "!=new." + key + " OR "
-            showSQL += "old." + key + ",new." + key + ","
-        orSQL = orSQL[:-3] + ")"
-    else:
-        orSQL = ""
-    showSQL = showSQL[:-1]
-    sql = "SELECT " + showSQL + " FROM " + oldTableName + " old INNER JOIN " + newViewName \
-          + " new ON " + onSQL + orSQL + ";"
-    countSQL = "SELECT COUNT(*) FROM " + oldTableName + " old INNER JOIN " + newViewName \
-               + " new ON " + onSQL + orSQL + ";"
+            showSQL += "old." + key + ",new." + key + " , "
+            noPrikeys+="old."+key+"!=new."+key+" OR "
+        showSQL = showSQL[:-2]
+        noPrikeys=noPrikeys[:-3]+")"
+
+    sql="SELECT "+showSQL+" FROM "+oldTableName+" old INNER JOIN "\
+        +newViewName+" new on ("+prikeys+" ) "+noPrikeys
+    countSQL = "SELECT COUNT(*) FROM " + oldTableName + " old INNER JOIN " \
+          + newViewName + " new on (" + prikeys + " ) " + noPrikeys
     result.append(sql)
     try:
         con = pool.get_connection()
@@ -520,7 +533,7 @@ def setPriIndexForTable(pool, tableName, priKey):
 # diff[0]表示旧数据库比新数据库多的信息
 # diff[1]表示新数据库比旧数据库多的信息
 # diff[2]表示两个数据库都存在的信息但不同的信息
-def checkDataDiffBetweenDBs(oldPool, newPool, dbNameOld, dbNameNew, viewName, priKey):
+def checkDataDiffBetweenDBs(oldPool, newPool, dbNameOld, dbNameNew, viewName, priKey,viewAndNoKeysColumns):
     diff = [None] * 3
     # 将旧数据库中的视图数据迁移至新数据库中并生成test_+view名的数据表
     oldData = getDataFromView(oldPool, dbNameOld, viewName)
@@ -530,14 +543,15 @@ def checkDataDiffBetweenDBs(oldPool, newPool, dbNameOld, dbNameNew, viewName, pr
     newViewName = dbNameNew + "." + viewName
     # 给新建的创建主键索引
     setPriIndexForTable(newPool, oldViewName, priKey)
-    # 找出所有非主键列名
-    keys = []
-    for item in tableInfo[1:]:
-        if item not in priKey:
-            keys.append(item)
+    #获取当前视图非主键字段
+    keys=viewAndNoKeysColumns[viewName]
     diff[0] = findDiffInOldView(newPool, oldViewName, newViewName, priKey)
     diff[1] = findDiffInNewView(newPool, oldViewName, newViewName, priKey)
-    diff[2] = findDiffBetweenOldAndNew(newPool, oldViewName, newViewName, priKey, keys)
+    if keys:
+        diff[2] = findDiffBetweenOldAndNew(newPool, oldViewName, newViewName, priKey, keys)
+    else:
+        diff[2][0]=""
+        diff[2][1]=0
     if diff[0][1]:
         msg = "视图： " + newViewName + " 中共有" + str(diff[0][1]) + "条记录只在旧数据库中\n查询SQL为： " + diff[0][0] + "\n"
         saveAndPrintERROR(msg)
@@ -641,19 +655,22 @@ def checkDataDiffDetailBetweenDBs(oldPool, newPool, dbNameOld, dbNameNew, viewNa
 
 
 # 检查json文件中配置的所有view
-def checkAllView(oldPool, newPool, dbNameOld, dbNameNew, viewAndKeys):
+def checkAllView(oldPool, newPool, dbNameOld, dbNameNew, viewAndKeys,viewAndNoKeysColumns):
     for key, value in viewAndKeys.items():
         start = time.time()
-        checkDataDiffBetweenDBs(oldPool, newPool, dbNameOld, dbNameNew, key, value)
+        checkDataDiffBetweenDBs(oldPool, newPool, dbNameOld, dbNameNew, key, value,viewAndNoKeysColumns)
         end = time.time()
         speedTime = str(end - start)
-        print("视图：" + key + "花费时间为：" + speedTime + "秒")
+        print("视图：" + key + "花费时间为：" + speedTime + "秒\n\n")
         saveLog("视图：" + key + "花费时间为：" + speedTime + "秒\n\n")
         # 该方法会显示数据差异明细并保存在文件中并删除临时表
         # checkDataDiffDetailBetweenDBs(oldPool,newPool,dbNameOld,dbNameNew,key,value)
 
 
 if __name__ == '__main__':
+
+
+
     start = time.time()
     jsonName = getKeysFromExcel("可用风控中心交互接口-202001.00.xlsm", "日初基础视图", [1, 2, 6], "接口名称")
     # todo 读取命令行参数
@@ -671,18 +688,27 @@ if __name__ == '__main__':
     dbNameOld = oldDB["database"]
     dbNameNew = newDB["database"]
     viewAndKeys = getViewAndKeys(jsonName)
+
     try:
         # 创建数据库连接池，优化查询IO性能
         oldPool = mysql.connector.pooling.MySQLConnectionPool(**oldDB, pool_size=2)
         newPool = mysql.connector.pooling.MySQLConnectionPool(**newDB, pool_size=2)
         # 此函数对应功能二
         sameNameAndColumnsView = checkViewBetweenOldAndNew(oldPool, newPool, dbNameOld, dbNameNew)
-        # 筛去数据库中没有但excel中有或字段不同的视图名
+        # 筛去数据库中没有但excel中不同名的视图名
+        sameInfo=getViewSameColumns(oldPool,newPool,dbNameOld,dbNameNew)
         for view in list(viewAndKeys.keys()):
-            if view not in sameNameAndColumnsView:
+            if view not in sameInfo.keys():
                 viewAndKeys.pop(view)
+        #存放当前json文件中的视图名与对应的非主键列名
+        viewAndNoKeysColumns={}
+        for itor in viewAndKeys.keys():
+            columns=sameInfo[itor]
+            for key in viewAndKeys[itor]:
+                columns.remove(key)
+            viewAndNoKeysColumns[itor]=columns
         # 此函数对应功能一
-        checkAllView(oldPool, newPool, dbNameOld, dbNameNew, viewAndKeys)
+        checkAllView(oldPool, newPool, dbNameOld, dbNameNew, viewAndKeys,viewAndNoKeysColumns)
     except Exception as e:
         traceback.print_exc()
     end = time.time()
