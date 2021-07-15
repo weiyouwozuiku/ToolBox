@@ -32,7 +32,7 @@ v1版需要安装lxml、BeautifulSoup4、Header依赖，运行`main.py`即可。
 
 ![image](https://user-images.githubusercontent.com/19681022/110322711-827d8280-804e-11eb-8c56-0dc19572db5f.png)
 
-v2版无需安装额外的第三方包，运行`main.py`即可。
+v2版只需安装一个额外的第三方包:requests，运行`main.py`即可。
 
 ### UnicomTask
 
