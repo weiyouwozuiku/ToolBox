@@ -104,3 +104,6 @@ v2版只需安装一个额外的第三方包:requests，运行`main.py`即可。
 ##### 使用
 
 使用`pip3 install -r requirement.txt`安装依赖。执行`main.py`即可。
+
+### Alfred-BaseConversion
+进制转换的Alfred Workflow
