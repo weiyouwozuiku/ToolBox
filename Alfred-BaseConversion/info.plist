@@ -25,7 +25,7 @@
 	<key>createdby</key>
 	<string>buer</string>
 	<key>description</key>
-	<string></string>
+	<string>进制转换工具</string>
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
@@ -66,7 +66,7 @@
 				<key>scriptfile</key>
 				<string></string>
 				<key>subtext</key>
-				<string>进制转换 请输入要转换的数字</string>
+				<string>请输入要转换的数字。二进制：0b或0B 八进制：0o或0O 十六进制：0x或0X</string>
 				<key>title</key>
 				<string>Base Conversion</string>
 				<key>type</key>
@@ -102,7 +102,7 @@
 		</dict>
 	</array>
 	<key>readme</key>
-	<string></string>
+	<string>请输入要转换的数字。二进制：0b或0B开头 八进制：0o或0O开头 十进制直接输入 十六进制：0x或0X开头</string>
 	<key>uidata</key>
 	<dict>
 		<key>6EC3E959-8A44-499A-8F39-FD920C5C02BD</key>
@@ -120,6 +120,10 @@
 			<integer>300</integer>
 		</dict>
 	</dict>
+	<key>variablesdontexport</key>
+	<array/>
+	<key>version</key>
+	<string>1.0.0</string>
 	<key>webaddress</key>
 	<string>https://github.com/weiyouwozuiku/Alfred-BaseConversion</string>
 </dict>
