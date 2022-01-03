@@ -121,9 +121,12 @@ v2版只需安装一个额外的第三方包:requests，运行 `main.py`即可�
 
 使用 `pip3 install -r requirement.txt`安装依赖。执行 `main.py`即可。
 
+
+
 ### Alfred-BaseConversion
 
 进制转换的Alfred Workflow
 
 直接下载[插件](https://github.com/weiyouwozuiku/ToolBox/releases/tag/v1.1.0)，双击运行即可。
 
+![](https://raw.githubusercontent.com/weiyouwozuiku/ToolBox/main/Alfred-BaseConversion/Alfred_BaseConversion.gif)
