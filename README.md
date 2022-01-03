@@ -125,3 +125,5 @@ v2版只需安装一个额外的第三方包:requests，运行 `main.py`即可�
 
 进制转换的Alfred Workflow
 
+直接下载[插件](https://github.com/weiyouwozuiku/ToolBox/releases/tag/v1.1.0)，双击运行即可。
+
