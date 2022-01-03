@@ -3,74 +3,105 @@
 import sys
 from workflow import Workflow3
 
+def show(value):
+    result=[]
+    resultStr=''
+    for i in range(len(value),0,-4):
+        result.append(','+value[(i-4 if i-4>=0 else 0):i])
+    result.reverse()
+    result[0]=result[0][1:]
+    for i in result:
+        resultStr+=i
+    return resultStr
 
-def conversionFrom0b(num):
+#除了10进制以外，展示时去掉前缀，即str[2:]
+
+def binShow(num):
+    binStr=bin(num)
+    return show(binStr[2:])
+
+#python2中的oct()返回以‘0’为前缀的字符串，因此特判[1:]
+def octShow(num):
+    octStr=oct(num)
+    return show(octStr[1:])
+
+def decShow(num):
+    decStr=str(num)
+    return show(decStr)
+
+def hexShow(num):
+    hexStr=hex(num)
+    return show(hexStr[2:])
+
+    
+
+def conversionFromBin(num):
     return {
-        'title': oct(num),
+        'title': octShow(num),
         'subtitle': '八进制',
         'arg': oct(num),
         'valid': True
     },{
-        'title': str(num),
+        'title': decShow(num),
         'subtitle': '十进制',
         'arg': str(num),
         'valid': True
     },{
-        'title': hex(num),
+        'title': hexShow(num),
         'subtitle': '十六进制',
         'arg': hex(num),
         'valid': True
     }
 
-def conversionFrom0(num):
+def conversionFromDec(num):
     return {
-        'title': bin(num),
+        'title': binShow(num),
         'subtitle': '二进制',
         'arg': bin(num),
         'valid': True
     },{
-        'title': oct(num),
+        'title': octShow(num),
         'subtitle': '八进制',
         'arg': oct(num),
         'valid': True
     },{
-        'title': hex(num),
+        'title': hexShow(num),
         'subtitle': '十六进制',
         'arg': hex(num),
         'valid': True
     }
 
-def conversionFrom0o(num):
+def conversionFromOct(num):
     return {
-        'title': bin(num),
+        'title': binShow(num),
         'subtitle': '二进制',
         'arg': bin(num),
         'valid': True
     },{
-        'title': str(num),
+        'title': decShow(num),
         'subtitle': '十进制',
         'arg': str(num),
         'valid': True
     },{
-        'title': hex(num),
+        'title': hexShow(num),
         'subtitle': '十六进制',
         'arg': hex(num),
         'valid': True
     }
 
-def conversionFrom0x(num):
+def conversionFromHex(num):
     return {
-        'title': bin(num),
+        'title': binShow(num),
         'subtitle': '二进制',
         'arg': bin(num),
         'valid': True
     },{
-        'title': oct(num),
+        'title': octShow(num),
         'subtitle': '八进制',
         'arg': oct(num),
         'valid': True
     },{
-        'title': str(num),
+        'title': decShow(num),
         'subtitle': '十进制',
         'arg': str(num),
         'valid': True
@@ -113,12 +144,12 @@ def main():
         wf.send_feedback()
         exit()
     switch={
-        2: conversionFrom0b(value),
-        8: conversionFrom0o(value),
-        10:conversionFrom0(value),
-        16:conversionFrom0x(value)
+        2: conversionFromBin,
+        8: conversionFromOct,
+        10:conversionFromDec,
+        16:conversionFromHex
     }
-    result=switch[base]
+    result=switch[base](value)
     for item in result:
         wf.add_item(**item)
     wf.send_feedback()
@@ -126,4 +157,3 @@ def main():
 
 if __name__=="__main__":
     main()
-    sys.exit(wf.run(main))
